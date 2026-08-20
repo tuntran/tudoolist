@@ -1,8 +1,8 @@
 # tudoolist
 
-Personal task, backlog, and habit tracker where **agents are the primary client**.
-Exposes a remote MCP server over Streamable HTTP so goclaw, Claude Code, and
-Claude Desktop can read and write the data directly.
+Personal client, project, and task tracker where **agents are the primary
+client**. Exposes a remote MCP server over Streamable HTTP so goclaw, Claude
+Code, and Claude Desktop can read and write the data directly.
 
 Runs on Cloudflare Workers. Target domain: `dooit.tuntran.com`.
 
@@ -11,9 +11,8 @@ Design rationale, locked decisions, and the build order live in
 
 ## Status
 
-In use. Seventeen tools over `client` → `project` → `task`, plus a `payment` log
-and `repo` links, backed by D1 and live on the custom domain. The data in it is
-mock.
+In use. Seventeen tools over `client` → `project` → `task`, plus a `payment`
+log, backed by D1 and live on the custom domain. The data in it is mock.
 
 | | |
 |---|---|
@@ -23,9 +22,9 @@ mock.
 | Claude Code | ✅ verified against production |
 | Claude Desktop | ✅ verified through the connector |
 | goclaw | ⏸ deferred — owner will wire and verify it separately |
-| D1 + tools | ✅ 3 tables, 12 tools |
+| D1 + tools | ✅ 4 tables, 17 tools |
 | Habits | ⬜ cut from v1, lands as its own migration |
-| Real data | ⬜ seeded with mock rows for now |
+| Real data | ⬜ mock rows for now |
 
 ## Tools
 
@@ -40,7 +39,7 @@ guess which day the server means.
 | `client_list` | clients, project counts, outstanding balance |
 | `client_add` | name, optional phone and note |
 | `client_update` | fill in a phone number that was not known at the time |
-| `project_list` | filter by client or status; includes what is still owed and linked repos |
+| `project_list` | filter by client or status; includes what is still owed and repo URLs |
 | `project_add` | needs a client id |
 | `project_update` | rename, restatus, change the agreed price, edit description, note, or repos |
 | `payment_add` | record money that just arrived — the amount received, not a new total |
@@ -73,11 +72,11 @@ what was believed at the time survives.
 right now. They started as one field, and one kept overwriting the other,
 because scope is written once and status changes weekly.
 
-Repos are rows in `repo`, not a column, because a project routinely spans a
-frontend and an API. They are set through `project_add`/`project_update` as a
-complete list that replaces what is stored, rather than through their own pair
-of add/remove tools — the tool surface stays small, and the caller states the
-list it wants instead of computing a diff.
+`project.repos` is a JSON array of repo URLs — a project routinely spans a
+frontend and an API. It started as a table with an id, a label and a timestamp
+per link; none of that was ever read, so it collapsed into a list. Set it
+through `project_add`/`project_update` by sending the complete list, which
+replaces what is stored. In `query`, unnest it with `json_each(project.repos)`.
 
 ### Reading vs guessing
 
@@ -164,7 +163,7 @@ curl -s -XPOST http://127.0.0.1:8787/mcp \
 ## Database
 
 Migrations are numbered SQL files applied by wrangler — no ORM, no migration
-framework, because three tables do not need one.
+framework, because four tables do not need one.
 
 | Command | |
 |---|---|

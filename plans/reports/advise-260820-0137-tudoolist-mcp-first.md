@@ -55,6 +55,7 @@ hoá đơn/PDF · subtask/tag · multi-user/team · sprint/epic
 | D13 | **Thống kê = `overview` + `query`**, không phải gọi list rồi tự cộng | 08-20 | `overview` tính trong SQL cho câu hỏi lặp lại; `query` (SELECT-only) cho phần tự custom |
 | D14 | **Tách `project.description` khỏi `note`; repo là bảng riêng** | 08-20 | Scope viết một lần, trạng thái đổi hàng tuần — chung một ô thì đè nhau. Một dự án nhiều repo (frontend + api) nên không thể là cột |
 | D15 | **Giữ số tool nhỏ: repo là field của `project_*`, không phải tool riêng** | 08-20 | Đảo lại `repo_add`/`repo_remove` vừa thêm. Gửi cả list, thay thế toàn bộ — caller khai báo cái mình muốn, không phải tự diff. 19 → 17 tool |
+| D16 | **Bỏ bảng `repo`, còn `project.repos` là JSON array URL** | 08-20 | `id`/`label`/`created_at` mỗi link chưa bao giờ được đọc. Câu hỏi duy nhất là "code nằm đâu" → chỉ cần list URL. `json_each()` để unnest trong `query`. 5 bảng → 4 |
 
 ## 6. Verdict
 
@@ -239,7 +240,7 @@ Nếu vượt ~25 tool thì mới cân nhắc đổi sang generic dispatch (enti
 - [x] Mọi tool result kèm `as_of` (giờ local + `today` + tz + UTC) để agent không suy diễn sai ngày
 - [x] Seed — **mock**, không phải dữ liệu thật (`seeds/mock.sql`: 3 client, 4 project, 15 task)
 - [x] Tool CRUD per-entity — 17 tool kể cả `ping`, chỉ verb thật dùng
-- [x] `project.description` tách khỏi `note`; bảng `repo`, set qua `project_*.repos` (D14, D15)
+- [x] `project.description` tách khỏi `note`; `project.repos` là JSON array URL, set qua `project_*` (D14→D16)
 - [x] `client_update` — trước đó thêm khách thiếu sđt là không sửa lại được
 - [ ] Dữ liệu thật — đã thử một lần rồi **seed đè lại bằng mock 08-20 theo yêu cầu**
   (backup `prod-260820-1445.backup.sql` giữ bản có data thật). Prod đang là mock

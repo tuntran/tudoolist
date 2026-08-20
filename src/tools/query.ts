@@ -41,12 +41,12 @@ export function registerQueryTool(server: McpServer, ctx: ToolContext): void {
         'Run one SELECT against the database for a question the other tools do ' +
         'not cover. Writes are rejected. ' +
         'Tables: client(id, name, phone, note, created_at); ' +
-        'project(id, client_id, name, status, amount_total, description, note, created_at) ' +
+        'project(id, client_id, name, status, amount_total, description, note, repos, created_at) ' +
         'with status in active/paused/done/cancelled; ' +
         'task(id, project_id, title, status, due_date, note, created_at, done_at) ' +
         'with status in todo/doing/done; ' +
-        'payment(id, project_id, amount, paid_date, note, created_at); ' +
-        'repo(id, project_id, url, label, created_at) — a project may have several. ' +
+        'payment(id, project_id, amount, paid_date, note, created_at). ' +
+        'project.repos is a JSON array of repo URLs, so use json_each(project.repos) to unnest it. ' +
         'Amounts are whole VND. A project\'s paid total is SUM(payment.amount) — ' +
         'there is no amount_paid column. due_date and paid_date are local ' +
         'YYYY-MM-DD strings and compare as text; created_at and done_at are UTC ' +

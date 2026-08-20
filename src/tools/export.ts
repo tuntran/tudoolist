@@ -9,7 +9,7 @@ import { rows } from '../db';
 import { ok, type ToolContext } from './shared';
 
 /** Parent before child, so the dump can be replayed against an empty database. */
-const TABLES = ['client', 'project', 'task', 'payment', 'repo'] as const;
+const TABLES = ['client', 'project', 'task', 'payment'] as const;
 
 /** SQL literal for a value D1 can return: text, number, or null. */
 function literal(value: unknown): string {
@@ -36,7 +36,7 @@ export function registerExportTool(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Export everything',
       description:
-        'Dump every client, project, task, payment, and repo link. format "json" returns structured ' +
+        'Dump every client, project, task, and payment. format "json" returns structured ' +
         'data to read or transform; format "sql" returns INSERT statements that ' +
         'restore the data into an empty database. Use this for a backup or when ' +
         'the user asks for their data, not to answer questions about it — the ' +

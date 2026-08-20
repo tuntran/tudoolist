@@ -10,7 +10,6 @@
 -- Dates are spread across June–August so the monthly figures in `overview` have
 -- something to actually differ between.
 
-DELETE FROM repo;
 DELETE FROM payment;
 DELETE FROM task;
 DELETE FROM project;
@@ -21,17 +20,11 @@ INSERT INTO client (id, name, phone, note) VALUES
   (2, 'Trần Thu Hà',     '0987654321', 'Giảng viên, tự trả tiền, hay đổi yêu cầu'),
   (3, 'Lê Quốc Bảo',     '0903112233', 'Bán hàng online, cần gấp, chốt qua Zalo');
 
-INSERT INTO project (id, client_id, name, status, amount_total, description, note, created_at) VALUES
-  (1, 1, 'Website chuỗi cà phê Mộc',      'active', 35000000, 'Web giới thiệu 3 chi nhánh, menu riêng từng nơi, đặt bàn online', 'Ứng 40%, còn lại khi bàn giao',   '2026-07-01T02:00:00Z'),
-  (2, 1, 'Landing page khai trương CS3',  'done',    6000000, 'Một trang, đếm ngược khai trương, gắn pixel quảng cáo',           'Đã thanh toán đủ',                '2026-07-20T02:00:00Z'),
-  (3, 2, 'App điểm danh lớp học',         'active', 22000000, 'Điểm danh QR cho sinh viên, màn hình giảng viên, báo cáo chuyên cần', 'Ứng 8tr, chưa chốt phần báo cáo', '2026-08-02T03:00:00Z'),
-  (4, 3, 'Bot chốt đơn Zalo',             'paused', 18000000, 'Nhận tin nhắn Zalo OA, tự tạo đơn từ nội dung chat',              'Client im từ đầu tháng',          '2026-06-15T03:00:00Z');
-
--- Project 3 spans two repos, which is why repos are rows rather than a column.
-INSERT INTO repo (project_id, url, label) VALUES
-  (1, 'https://github.com/example/moc-web',      NULL),
-  (3, 'https://github.com/example/diemdanh-api', 'api'),
-  (3, 'https://github.com/example/diemdanh-app', 'mobile');
+INSERT INTO project (id, client_id, name, status, amount_total, description, note, repos, created_at) VALUES
+  (1, 1, 'Website chuỗi cà phê Mộc',      'active', 35000000, 'Web giới thiệu 3 chi nhánh, menu riêng từng nơi, đặt bàn online', 'Ứng 40%, còn lại khi bàn giao',   '["https://github.com/example/moc-web"]', '2026-07-01T02:00:00Z'),
+  (2, 1, 'Landing page khai trương CS3',  'done',    6000000, 'Một trang, đếm ngược khai trương, gắn pixel quảng cáo',           'Đã thanh toán đủ',                NULL, '2026-07-20T02:00:00Z'),
+  (3, 2, 'App điểm danh lớp học',         'active', 22000000, 'Điểm danh QR cho sinh viên, màn hình giảng viên, báo cáo chuyên cần', 'Ứng 8tr, chưa chốt phần báo cáo', '["https://github.com/example/diemdanh-api","https://github.com/example/diemdanh-app"]', '2026-08-02T03:00:00Z'),
+  (4, 3, 'Bot chốt đơn Zalo',             'paused', 18000000, 'Nhận tin nhắn Zalo OA, tự tạo đơn từ nội dung chat',              'Client im từ đầu tháng',          NULL, '2026-06-15T03:00:00Z');
 
 INSERT INTO payment (project_id, amount, paid_date, note) VALUES
   (1, 10000000, '2026-07-15', 'Ứng đợt 1'),
