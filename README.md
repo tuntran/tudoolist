@@ -11,9 +11,9 @@ Design rationale, locked decisions, and the build order live in
 
 ## Status
 
-In use. Nineteen tools over `client` → `project` → `task`, plus a `payment` log
-and `repo` links, backed by D1 and live on the custom domain. Production holds
-real client work alongside the mock rows.
+In use. Seventeen tools over `client` → `project` → `task`, plus a `payment` log
+and `repo` links, backed by D1 and live on the custom domain. The data in it is
+mock.
 
 | | |
 |---|---|
@@ -42,9 +42,7 @@ guess which day the server means.
 | `client_update` | fill in a phone number that was not known at the time |
 | `project_list` | filter by client or status; includes what is still owed and linked repos |
 | `project_add` | needs a client id |
-| `project_update` | rename, restatus, change the agreed price, edit description or note |
-| `repo_add` | link a repo to a project; several per project, each optionally labelled |
-| `repo_remove` | unlink one, for a mistyped or moved URL |
+| `project_update` | rename, restatus, change the agreed price, edit description, note, or repos |
 | `payment_add` | record money that just arrived — the amount received, not a new total |
 | `payment_list` | payment history, filterable by project, client, or month |
 | `task_list` | filter by project, client, status, due date. Hides done tasks by default |
@@ -76,7 +74,10 @@ right now. They started as one field, and one kept overwriting the other,
 because scope is written once and status changes weekly.
 
 Repos are rows in `repo`, not a column, because a project routinely spans a
-frontend and an API.
+frontend and an API. They are set through `project_add`/`project_update` as a
+complete list that replaces what is stored, rather than through their own pair
+of add/remove tools — the tool surface stays small, and the caller states the
+list it wants instead of computing a diff.
 
 ### Reading vs guessing
 

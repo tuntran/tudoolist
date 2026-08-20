@@ -23,6 +23,27 @@ const DESCRIPTION = z
 const NOTE_HINT = 'Where it stands right now, e.g. "còn phần gửi mail". Changes often';
 
 /**
+ * Repos are a field on the project rather than their own pair of add/remove
+ * tools: the surface stays small, and the caller states the list it wants
+ * instead of computing a diff against what is stored.
+ */
+const REPOS = z
+  .array(
+    z.object({
+      url: z.string().min(1).describe('e.g. https://github.com/tuntran/tudoolist'),
+      label: z
+        .string()
+        .optional()
+        .describe('Which part it is: "frontend", "api", "mobile". Skip for a single repo'),
+    }),
+  )
+  .describe(
+    'The complete repo list for this project — it replaces whatever is stored. ' +
+      'To add one, send the existing repos from project_list plus the new one; ' +
+      'to remove one, send the list without it; send [] to clear.',
+  );
+
+/**
  * A project always reports what it has been paid, which is the sum of its
  * payments — there is no stored total to read.
  */
@@ -38,6 +59,38 @@ const PROJECT_SELECT = `
     JOIN client c ON c.id = p.client_id
     LEFT JOIN (SELECT project_id, SUM(amount) AS total FROM payment GROUP BY project_id) paid
            ON paid.project_id = p.id`;
+
+type RepoInput = { url: string; label?: string };
+
+/**
+ * Replace a project's repo list wholesale.
+ *
+ * Delete-then-insert rather than a diff: the list is a handful of rows, and
+ * working out which ones changed costs more code than rewriting them.
+ * Returns an error message when the caller sent the same URL twice, which the
+ * table's UNIQUE would otherwise reject with something far less legible.
+ */
+async function replaceRepos(
+  ctx: ToolContext,
+  projectId: number,
+  repos: RepoInput[],
+): Promise<string | null> {
+  const seen = new Set<string>();
+  for (const { url } of repos) {
+    if (seen.has(url)) return `the same repo appears twice in the list: ${url}`;
+    seen.add(url);
+  }
+
+  await exec(ctx.db, 'DELETE FROM repo WHERE project_id = ?', [projectId]);
+  for (const { url, label } of repos) {
+    await exec(ctx.db, 'INSERT INTO repo (project_id, url, label) VALUES (?, ?, ?)', [
+      projectId,
+      url,
+      label ?? null,
+    ]);
+  }
+  return null;
+}
 
 /**
  * Repos are fetched separately and grouped in code rather than aggregated in
@@ -103,16 +156,17 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
         'client id is unknown, or client_add if the person is new. ' +
         'Leave amount_total out when nothing has been agreed yet. Money already ' +
         'received is recorded separately with payment_add, so that the date it ' +
-        'arrived is kept. Repos are attached afterwards with repo_add.',
+        'arrived is kept.',
       inputSchema: {
         client_id: z.number().int().describe('Owning client, from client_list'),
         name: z.string().min(1).describe('What the job is called'),
         amount_total: MONEY.optional().describe('Agreed contract value in VND'),
         description: DESCRIPTION.optional(),
         note: z.string().optional().describe(NOTE_HINT),
+        repos: REPOS.optional(),
       },
     },
-    async ({ client_id, name, amount_total, description, note }) => {
+    async ({ client_id, name, amount_total, description, note, repos }) => {
       const client = await one(ctx.db, 'SELECT id FROM client WHERE id = ?', [client_id]);
       if (!client) return fail(ctx, `no client with id ${client_id}`);
 
@@ -122,9 +176,14 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
          VALUES (?, ?, ?, ?, ?)`,
         [client_id, name, amount_total ?? 0, description ?? null, note ?? null],
       );
-      const created = await one<{ id: number }>(ctx.db, `${PROJECT_SELECT} WHERE p.id = ?`, [
-        result.meta.last_row_id,
-      ]);
+      const id = result.meta.last_row_id;
+
+      if (repos) {
+        const rejected = await replaceRepos(ctx, id, repos);
+        if (rejected) return fail(ctx, rejected);
+      }
+
+      const created = await one<{ id: number }>(ctx.db, `${PROJECT_SELECT} WHERE p.id = ?`, [id]);
       return ok(ctx, { project: (await withRepos(ctx, created ? [created] : []))[0] });
     },
   );
@@ -134,10 +193,9 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
     {
       title: 'Update a project',
       description:
-        'Rename a project, move its status, change the agreed price, or edit its ' +
-        'description and note. Money received is not set here — use payment_add, ' +
-        'which keeps the date each payment arrived. Repos are managed with ' +
-        'repo_add and repo_remove.',
+        'Rename a project, move its status, change the agreed price, edit its ' +
+        'description or note, or set its repo list. Money received is not set ' +
+        'here — use payment_add, which keeps the date each payment arrived.',
       inputSchema: {
         id: z.number().int().describe('Project to change, from project_list'),
         name: z.string().min(1).optional(),
@@ -145,17 +203,25 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
         amount_total: MONEY.optional().describe('New agreed value in VND'),
         description: DESCRIPTION.nullable().optional(),
         note: z.string().nullable().optional().describe(NOTE_HINT),
+        repos: REPOS.optional(),
       },
     },
-    async ({ id, ...fields }) => {
-      const update = setClause(fields);
-      if (!update) return fail(ctx, 'nothing to update — pass at least one field besides id');
+    async ({ id, repos, ...fields }) => {
+      const exists = await one(ctx.db, 'SELECT id FROM project WHERE id = ?', [id]);
+      if (!exists) return fail(ctx, `no project with id ${id}`);
 
-      const result = await exec(ctx.db, `UPDATE project SET ${update.sql} WHERE id = ?`, [
-        ...update.params,
-        id,
-      ]);
-      if (result.meta.changes === 0) return fail(ctx, `no project with id ${id}`);
+      const update = setClause(fields);
+      if (!update && !repos) {
+        return fail(ctx, 'nothing to update — pass at least one field besides id');
+      }
+
+      if (update) {
+        await exec(ctx.db, `UPDATE project SET ${update.sql} WHERE id = ?`, [...update.params, id]);
+      }
+      if (repos) {
+        const rejected = await replaceRepos(ctx, id, repos);
+        if (rejected) return fail(ctx, rejected);
+      }
 
       const updated = await one<{ id: number }>(ctx.db, `${PROJECT_SELECT} WHERE p.id = ?`, [id]);
       return ok(ctx, { project: (await withRepos(ctx, updated ? [updated] : []))[0] });
