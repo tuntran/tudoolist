@@ -2,8 +2,8 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { exec, one, rows } from '../db';
-import { ok, type ToolContext } from './shared';
+import { exec, one, rows, setClause } from '../db';
+import { fail, ok, type ToolContext } from './shared';
 
 interface ClientRow {
   id: number;
@@ -66,6 +66,34 @@ export function registerClientTools(server: McpServer, ctx: ToolContext): void {
         [name, phone ?? null, note ?? null],
       );
       const id = result.meta.last_row_id;
+      return ok(ctx, { client: await one(ctx.db, 'SELECT * FROM client WHERE id = ?', [id]) });
+    },
+  );
+
+  server.registerTool(
+    'client_update',
+    {
+      title: 'Update a client',
+      description:
+        'Change a client\'s name, phone, or note — typically to fill in a phone ' +
+        'number that was not known when they were added.',
+      inputSchema: {
+        id: z.number().int().describe('Client to change, from client_list'),
+        name: z.string().min(1).optional(),
+        phone: z.string().nullable().optional().describe('null clears it'),
+        note: z.string().nullable().optional(),
+      },
+    },
+    async ({ id, ...fields }) => {
+      const update = setClause(fields);
+      if (!update) return fail(ctx, 'nothing to update — pass at least one field besides id');
+
+      const result = await exec(ctx.db, `UPDATE client SET ${update.sql} WHERE id = ?`, [
+        ...update.params,
+        id,
+      ]);
+      if (result.meta.changes === 0) return fail(ctx, `no client with id ${id}`);
+
       return ok(ctx, { client: await one(ctx.db, 'SELECT * FROM client WHERE id = ?', [id]) });
     },
   );

@@ -14,12 +14,13 @@ import { registerOverviewTool } from './tools/overview';
 import { registerPaymentTools } from './tools/payment';
 import { registerProjectTools } from './tools/project';
 import { registerQueryTool } from './tools/query';
+import { registerRepoTools } from './tools/repo';
 import { registerTaskTools } from './tools/task';
 import { registerTodayTool } from './tools/today';
 import { ok, type ToolContext } from './tools/shared';
 
 export const SERVER_NAME = 'tudoolist';
-export const SERVER_VERSION = '0.3.0';
+export const SERVER_VERSION = '0.4.0';
 
 export function createMcpServer(ctx: ToolContext): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
@@ -49,6 +50,7 @@ export function createMcpServer(ctx: ToolContext): McpServer {
 
   registerClientTools(server, ctx);
   registerProjectTools(server, ctx);
+  registerRepoTools(server, ctx);
   registerPaymentTools(server, ctx);
   registerTaskTools(server, ctx);
   registerTodayTool(server, ctx);

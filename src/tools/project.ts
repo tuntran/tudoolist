@@ -13,6 +13,16 @@ const STATUSES = ['active', 'paused', 'done', 'cancelled'] as const;
 const MONEY = z.number().int().min(0).describe('Whole VND, e.g. 35000000 for 35 triệu');
 
 /**
+ * description and note pull apart what used to share one field. Scope barely
+ * changes; status changes weekly. Writing one into the other loses it.
+ */
+const DESCRIPTION = z
+  .string()
+  .describe('What the project actually is — the scope. Stays roughly fixed once written');
+
+const NOTE_HINT = 'Where it stands right now, e.g. "còn phần gửi mail". Changes often';
+
+/**
  * A project always reports what it has been paid, which is the sum of its
  * payments — there is no stored total to read.
  */
@@ -22,12 +32,37 @@ const PROJECT_SELECT = `
          p.amount_total,
          COALESCE(paid.total, 0)                  AS amount_paid,
          p.amount_total - COALESCE(paid.total, 0) AS outstanding,
-         p.note, p.created_at,
+         p.description, p.note, p.created_at,
          (SELECT COUNT(*) FROM task t WHERE t.project_id = p.id AND t.status <> 'done') AS open_tasks
     FROM project p
     JOIN client c ON c.id = p.client_id
     LEFT JOIN (SELECT project_id, SUM(amount) AS total FROM payment GROUP BY project_id) paid
            ON paid.project_id = p.id`;
+
+/**
+ * Repos are fetched separately and grouped in code rather than aggregated in
+ * SQL, which would return them as a JSON string the caller has to parse back.
+ */
+async function withRepos<T extends { id: number }>(
+  ctx: ToolContext,
+  projects: T[],
+): Promise<Array<T & { repos: unknown[] }>> {
+  if (projects.length === 0) return [];
+
+  const placeholders = projects.map(() => '?').join(', ');
+  const links = await rows<{ project_id: number; id: number; url: string; label: string | null }>(
+    ctx.db,
+    `SELECT id, project_id, url, label FROM repo WHERE project_id IN (${placeholders}) ORDER BY id`,
+    projects.map((p) => p.id),
+  );
+
+  return projects.map((project) => ({
+    ...project,
+    repos: links
+      .filter((link) => link.project_id === project.id)
+      .map(({ id, url, label }) => ({ id, url, label })),
+  }));
+}
 
 export function registerProjectTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
@@ -36,8 +71,9 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
       title: 'List projects',
       description:
         'List projects with their client, agreed price, amount already paid, ' +
-        'and what is still owed. Amounts are whole VND. Filter by client or ' +
-        'status; with no filter it returns everything, newest project last.',
+        'what is still owed, and any linked repos. Amounts are whole VND. ' +
+        'Filter by client or status; with no filter it returns everything, ' +
+        'newest project last.',
       inputSchema: {
         client_id: z.number().int().optional().describe('Only this client\'s projects'),
         status: z.enum(STATUSES).optional().describe('Only projects in this status'),
@@ -49,12 +85,12 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
         ['p.status = ?', status],
       ]);
 
-      const projects = await rows(
+      const projects = await rows<{ id: number }>(
         ctx.db,
         `${PROJECT_SELECT} ${where.sql} ORDER BY p.id`,
         where.params,
       );
-      return ok(ctx, { projects });
+      return ok(ctx, { projects: await withRepos(ctx, projects) });
     },
   );
 
@@ -67,26 +103,29 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
         'client id is unknown, or client_add if the person is new. ' +
         'Leave amount_total out when nothing has been agreed yet. Money already ' +
         'received is recorded separately with payment_add, so that the date it ' +
-        'arrived is kept.',
+        'arrived is kept. Repos are attached afterwards with repo_add.',
       inputSchema: {
         client_id: z.number().int().describe('Owning client, from client_list'),
         name: z.string().min(1).describe('What the job is called'),
         amount_total: MONEY.optional().describe('Agreed contract value in VND'),
-        note: z.string().optional(),
+        description: DESCRIPTION.optional(),
+        note: z.string().optional().describe(NOTE_HINT),
       },
     },
-    async ({ client_id, name, amount_total, note }) => {
+    async ({ client_id, name, amount_total, description, note }) => {
       const client = await one(ctx.db, 'SELECT id FROM client WHERE id = ?', [client_id]);
       if (!client) return fail(ctx, `no client with id ${client_id}`);
 
       const result = await exec(
         ctx.db,
-        'INSERT INTO project (client_id, name, amount_total, note) VALUES (?, ?, ?, ?)',
-        [client_id, name, amount_total ?? 0, note ?? null],
+        `INSERT INTO project (client_id, name, amount_total, description, note)
+         VALUES (?, ?, ?, ?, ?)`,
+        [client_id, name, amount_total ?? 0, description ?? null, note ?? null],
       );
-      return ok(ctx, {
-        project: await one(ctx.db, `${PROJECT_SELECT} WHERE p.id = ?`, [result.meta.last_row_id]),
-      });
+      const created = await one<{ id: number }>(ctx.db, `${PROJECT_SELECT} WHERE p.id = ?`, [
+        result.meta.last_row_id,
+      ]);
+      return ok(ctx, { project: (await withRepos(ctx, created ? [created] : []))[0] });
     },
   );
 
@@ -96,14 +135,16 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
       title: 'Update a project',
       description:
         'Rename a project, move its status, change the agreed price, or edit its ' +
-        'note. Money received is not set here — use payment_add, which keeps the ' +
-        'date each payment arrived.',
+        'description and note. Money received is not set here — use payment_add, ' +
+        'which keeps the date each payment arrived. Repos are managed with ' +
+        'repo_add and repo_remove.',
       inputSchema: {
         id: z.number().int().describe('Project to change, from project_list'),
         name: z.string().min(1).optional(),
         status: z.enum(STATUSES).optional(),
         amount_total: MONEY.optional().describe('New agreed value in VND'),
-        note: z.string().optional(),
+        description: DESCRIPTION.nullable().optional(),
+        note: z.string().nullable().optional().describe(NOTE_HINT),
       },
     },
     async ({ id, ...fields }) => {
@@ -116,7 +157,8 @@ export function registerProjectTools(server: McpServer, ctx: ToolContext): void 
       ]);
       if (result.meta.changes === 0) return fail(ctx, `no project with id ${id}`);
 
-      return ok(ctx, { project: await one(ctx.db, `${PROJECT_SELECT} WHERE p.id = ?`, [id]) });
+      const updated = await one<{ id: number }>(ctx.db, `${PROJECT_SELECT} WHERE p.id = ?`, [id]);
+      return ok(ctx, { project: (await withRepos(ctx, updated ? [updated] : []))[0] });
     },
   );
 }

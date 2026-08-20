@@ -11,9 +11,9 @@ Design rationale, locked decisions, and the build order live in
 
 ## Status
 
-Usable. Sixteen tools over `client` → `project` → `task` plus a `payment` log,
-backed by D1 and live on the custom domain. The data in it is mock, not real
-work.
+In use. Nineteen tools over `client` → `project` → `task`, plus a `payment` log
+and `repo` links, backed by D1 and live on the custom domain. Production holds
+real client work alongside the mock rows.
 
 | | |
 |---|---|
@@ -39,9 +39,12 @@ guess which day the server means.
 | `ping` | reachable and authenticated, plus the current local time |
 | `client_list` | clients, project counts, outstanding balance |
 | `client_add` | name, optional phone and note |
-| `project_list` | filter by client or status; includes what is still owed |
+| `client_update` | fill in a phone number that was not known at the time |
+| `project_list` | filter by client or status; includes what is still owed and linked repos |
 | `project_add` | needs a client id |
-| `project_update` | rename, restatus, change the agreed price |
+| `project_update` | rename, restatus, change the agreed price, edit description or note |
+| `repo_add` | link a repo to a project; several per project, each optionally labelled |
+| `repo_remove` | unlink one, for a mistyped or moved URL |
 | `payment_add` | record money that just arrived — the amount received, not a new total |
 | `payment_list` | payment history, filterable by project, client, or month |
 | `task_list` | filter by project, client, status, due date. Hides done tasks by default |
@@ -65,6 +68,15 @@ reason streaks are derived from check-ins rather than kept in a column.
 
 Correcting a mistake means adding a negative row, not editing the old one, so
 what was believed at the time survives.
+
+### description vs note
+
+`description` is what the project is — the scope. `note` is where it stands
+right now. They started as one field, and one kept overwriting the other,
+because scope is written once and status changes weekly.
+
+Repos are rows in `repo`, not a column, because a project routinely spans a
+frontend and an API.
 
 ### Reading vs guessing
 
@@ -157,9 +169,11 @@ framework, because three tables do not need one.
 |---|---|
 | `npm run db:migrate` | apply migrations locally |
 | `npm run db:migrate:remote` | apply them to production |
-| `npm run db:seed` | load `seeds/mock.sql` locally (wipes the three tables first) |
-| `npm run db:seed:remote` | same, against production |
-| `npm run db:backup` | dump production to `backup.sql` |
+| `npm run db:seed` | load `seeds/mock.sql` locally (wipes every table first) |
+| `npm run db:seed:remote` | **destructive** — same wipe, against production, which now holds real work |
+| `npm run db:backup` | dump production to `backup.sql` (gitignored: real names and amounts) |
+
+Seeding production deletes what is there. Back up first, or stay local.
 
 `APP_TZ` in `wrangler.jsonc` decides what "today" means. It is a var rather than
 a constant so it can follow whoever uses the server; `Asia/Saigon` and

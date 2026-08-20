@@ -1,15 +1,16 @@
 -- Mock seed data. NOT real client work — invented to give the tools something
 -- to read while the tool surface is being built.
 --
--- Safe to re-run: it clears every table first. Delete this file (and the rows)
--- once real data lands.
+-- DESTRUCTIVE: this clears every table before inserting. Production now holds
+-- real client work alongside these rows, so `npm run db:seed:remote` would
+-- delete it. Take a backup first, or stay on the local database:
 --
---   npm run db:seed         local dev database
---   npm run db:seed:remote  production
+--   npm run db:seed    local dev database — safe
 --
 -- Dates are spread across June–August so the monthly figures in `overview` have
 -- something to actually differ between.
 
+DELETE FROM repo;
 DELETE FROM payment;
 DELETE FROM task;
 DELETE FROM project;
@@ -20,11 +21,17 @@ INSERT INTO client (id, name, phone, note) VALUES
   (2, 'Trần Thu Hà',     '0987654321', 'Giảng viên, tự trả tiền, hay đổi yêu cầu'),
   (3, 'Lê Quốc Bảo',     '0903112233', 'Bán hàng online, cần gấp, chốt qua Zalo');
 
-INSERT INTO project (id, client_id, name, status, amount_total, note, created_at) VALUES
-  (1, 1, 'Website chuỗi cà phê Mộc',      'active', 35000000, 'Ứng 40%, còn lại khi bàn giao',   '2026-07-01T02:00:00Z'),
-  (2, 1, 'Landing page khai trương CS3',  'done',    6000000, 'Đã thanh toán đủ',                '2026-07-20T02:00:00Z'),
-  (3, 2, 'App điểm danh lớp học',         'active', 22000000, 'Ứng 8tr, chưa chốt phần báo cáo', '2026-08-02T03:00:00Z'),
-  (4, 3, 'Bot chốt đơn Zalo',             'paused', 18000000, 'Client im từ đầu tháng',          '2026-06-15T03:00:00Z');
+INSERT INTO project (id, client_id, name, status, amount_total, description, note, created_at) VALUES
+  (1, 1, 'Website chuỗi cà phê Mộc',      'active', 35000000, 'Web giới thiệu 3 chi nhánh, menu riêng từng nơi, đặt bàn online', 'Ứng 40%, còn lại khi bàn giao',   '2026-07-01T02:00:00Z'),
+  (2, 1, 'Landing page khai trương CS3',  'done',    6000000, 'Một trang, đếm ngược khai trương, gắn pixel quảng cáo',           'Đã thanh toán đủ',                '2026-07-20T02:00:00Z'),
+  (3, 2, 'App điểm danh lớp học',         'active', 22000000, 'Điểm danh QR cho sinh viên, màn hình giảng viên, báo cáo chuyên cần', 'Ứng 8tr, chưa chốt phần báo cáo', '2026-08-02T03:00:00Z'),
+  (4, 3, 'Bot chốt đơn Zalo',             'paused', 18000000, 'Nhận tin nhắn Zalo OA, tự tạo đơn từ nội dung chat',              'Client im từ đầu tháng',          '2026-06-15T03:00:00Z');
+
+-- Project 3 spans two repos, which is why repos are rows rather than a column.
+INSERT INTO repo (project_id, url, label) VALUES
+  (1, 'https://github.com/example/moc-web',      NULL),
+  (3, 'https://github.com/example/diemdanh-api', 'api'),
+  (3, 'https://github.com/example/diemdanh-app', 'mobile');
 
 INSERT INTO payment (project_id, amount, paid_date, note) VALUES
   (1, 10000000, '2026-07-15', 'Ứng đợt 1'),
