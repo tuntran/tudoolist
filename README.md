@@ -109,9 +109,21 @@ claude mcp add --transport http tudoolist https://dooit.tuntran.com/mcp \
 claude mcp list
 ```
 
-**Claude Desktop** — Settings → Connectors → Add custom connector. Leave the
-OAuth fields empty and use the URL with the path secret:
-`https://dooit.tuntran.com/mcp/<MCP_PATH_SECRET>`
+**Claude Desktop**
+
+1. Settings → Connectors → **Add custom connector**
+2. **Name**: `tudoolist`
+3. **Remote MCP server URL**: `https://dooit.tuntran.com/mcp/<MCP_PATH_SECRET>`
+   — the path secret is the whole credential here
+4. Open **Advanced settings** and leave **OAuth Client ID** and **OAuth Client
+   Secret** empty. This server does not speak OAuth; filling them in makes
+   Desktop attempt a flow that will fail.
+5. **Add**, then confirm `ping` shows up in the connector's tool list.
+
+Desktop needs a public HTTPS URL — it cannot reach `localhost` through this
+dialog, so it is the one client that cannot be tested before deploying.
+
+Rotating the path secret means editing this connector's URL and nothing else.
 
 **goclaw** — point it at `https://dooit.tuntran.com/mcp` with the
 `Authorization: Bearer` header.
