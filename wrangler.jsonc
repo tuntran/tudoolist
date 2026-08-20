@@ -1,0 +1,27 @@
+{
+  "name": "tudoolist",
+  "account_id": "fd382bfbeb13f811288f3532bece478e",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  // The MCP SDK reaches for a handful of node built-ins.
+  "compatibility_flags": ["nodejs_compat"],
+  // Logs are on, so keep secrets out of anything we log. See src/log.ts.
+  "observability": { "enabled": true },
+
+  // Deploying creates the dooit DNS record in the tuntran.com zone, which is
+  // already served by Cloudflare.
+  "routes": [{ "pattern": "dooit.tuntran.com", "custom_domain": true }],
+
+  // Dates are local calendar days, so the zone is config, not a constant.
+  // Asia/Saigon is the same zone under its older IANA name.
+  "vars": { "APP_TZ": "Asia/Ho_Chi_Minh" },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tudoolist",
+      "database_id": "f73268e8-e6a9-4f1c-8217-de75b57e92a8",
+      "migrations_dir": "migrations",
+    },
+  ],
+}
