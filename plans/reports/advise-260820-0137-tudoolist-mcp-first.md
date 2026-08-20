@@ -1,7 +1,7 @@
 # Advise: tudoolist — MCP-first personal tracker
 
 Ngày: 2026-08-20 · Nguồn: `/ak-advise` interview session 2026-08-19 → 08-20
-Trạng thái: **đã chốt, sẵn sàng implement**
+Trạng thái: **đã chốt · walking skeleton đã dựng và test xong (bước 1-3)**
 Thay thế: `plans/260819-1508-client-project-habit-tracker/spec.md` (spec đó **sai** ở 2 điểm cốt lõi, xem §8)
 
 ---
@@ -46,6 +46,7 @@ hoá đơn/PDF · subtask/tag · multi-user/team · sprint/epic
 | D5 | **TypeScript** | 08-20 | Hệ quả bắt buộc của D4 — Workers runtime là JS/V8 |
 | D6 | **Auth = A + C**: nhận cả `Authorization: Bearer` **và** secret trong URL path | 08-20 | Xem §7 |
 | D7 | Domain: **`dooit.tuntran.com`** | 08-20 | Workers custom domain, không cần tunnel |
+| D8 | **Hai secret riêng**: `MCP_SECRET` (header) và `MCP_PATH_SECRET` (path) | 08-20 | Ép bởi phát hiện log §7b |
 
 ## 6. Verdict
 
@@ -71,18 +72,47 @@ Dialog chỉ có: Name · Remote MCP server URL · Advanced settings → OAuth C
 | B | Tự viết OAuth authorization server | Rất nhiều máy móc để tự xác thực với chính mình. **Loại** |
 | C | Secret nhúng trong URL path `/mcp/<hex>` | Cách duy nhất đưa shared secret vào Desktop |
 
-**Chốt: A + C cùng lúc.** Một middleware nhận cả hai, cùng một secret:
-- goclaw & Claude Code → `Authorization: Bearer <token>` (rotate dễ hơn)
-- Claude Desktop → secret trong path
+**Chốt: A + C cùng lúc.** Một middleware nhận cả hai đường vào — nhưng **hai secret khác
+nhau**, không phải một (D8, lý do ở §7b):
+- goclaw & Claude Code → `Authorization: Bearer $MCP_SECRET`
+- Claude Desktop → `$MCP_PATH_SECRET` trong path
 
 **Threat model:** cái này bảo vệ *task list cá nhân*. Không tiền, không credential,
 không dữ liệu người khác. TLS che path khi truyền → rủi ro thật là **log**
-(access log, log Cloudflare, file config Desktop) — tất cả đều là chỗ của mình.
-→ **Bắt buộc tắt log path/query cho route `/mcp` ngay từ đầu.**
+(request log của Cloudflare, file config Desktop) — tất cả đều là chỗ của mình.
+Redact trong app log là cần nhưng **không đủ**; xem §7b.
 
 **v2 nếu muốn làm đúng:** IdP sẵn có (Authentik/Keycloak/Auth0), server chỉ validate JWT +
 serve protected-resource metadata, paste Client ID/Secret vào 2 field trong dialog.
 Ít code hơn B rất nhiều. Không làm ở v1.
+
+## 7b. Phát hiện khi test: redaction ở tầng app là KHÔNG đủ
+
+**Sửa lại khẳng định trước đó của tài liệu này.** Bản nháp đầu ghi "tắt log path/query cho
+`/mcp` ngay từ đầu" như thể đó là biện pháp đủ. **Sai.** Đo thực tế trên `wrangler dev`:
+
+```
+[wrangler:info] POST /mcp/34f72f80…eb190 200 OK (4ms)   ← platform log, app không chạm tới
+POST /mcp/<redacted> -> 200                              ← log của app, sạch
+```
+
+Log của runtime nằm ngoài tầm với của Worker code. Trên production, Workers request logs
+cũng ghi URL đầy đủ như vậy. → **Không thể ngăn path secret vào log.**
+
+**Hệ quả → D8: tách hai secret.**
+
+| Secret | Ai dùng | Có vào log không |
+|---|---|---|
+| `MCP_SECRET` | goclaw, Claude Code (header) | **Không** — không bao giờ nằm trong URL |
+| `MCP_PATH_SECRET` | Claude Desktop (path) | **Có** — chấp nhận, xoay riêng được |
+
+Xoay `MCP_PATH_SECRET` = add lại đúng 1 connector Desktop, không đụng goclaw/Claude Code.
+Bỏ trống `MCP_PATH_SECRET` = tắt hẳn đường path (default đúng nếu không dùng Desktop).
+
+Kiểm chứng đã chạy: bearer secret dùng ở path route → 401; path secret dùng ở header
+route → 401. Hai đường không hoán đổi được.
+
+Vẫn giữ redaction trong app log — nó giảm bề mặt, chỉ là không giải quyết trọn vẹn.
 
 ## 8. Vì sao spec cũ bị thay thế
 
@@ -105,8 +135,10 @@ Phần entity + non-goals của spec cũ vẫn đúng, đã hấp thụ vào §2
 - Đổi lại: không vận hành server, không tunnel, public HTTPS + custom domain miễn phí,
   không phải oncall khi VPS chết.
 
-**Của D6 (secret in path):**
-- Không revoke được từng client. Lộ → xoay secret, cập nhật cả 3 nơi.
+**Của D6 + D8 (secret in path):**
+- Không revoke được từng client trong cùng một đường vào.
+- Path secret **chắc chắn** vào Cloudflare request log, không ngăn được (§7b). Giảm thiểu
+  bằng cách tách nó khỏi bearer secret, nên xoay chỉ tốn 1 thao tác trên Desktop.
 - Secret xuất hiện trong file config Desktop trên máy local.
 
 **Điều kiện khiến khuyến nghị hết đúng, và giá để đổi:**
@@ -124,7 +156,7 @@ Phần entity + non-goals của spec cũ vẫn đúng, đã hấp thụ vào §2
 | Bước | Việc | Xong khi |
 |---|---|---|
 | 1 | Skeleton: Worker + `/mcp` Streamable HTTP + **đúng 1 tool `ping`**. Chưa DB, chưa entity | `wrangler dev` chạy |
-| 2 | Auth middleware (1 file): nhận header **và** path secret. `/healthz` không auth. Tắt log path/query cho `/mcp` | curl không secret → 401 |
+| 2 | Auth middleware (1 file): 2 secret, header **và** path. `/healthz` không auth. Redact path trong app log | curl không secret → 401 |
 | 3 | Test local: curl trước, rồi Claude Code → `localhost` | `ping` trả về |
 | 4 | Deploy + custom domain `dooit.tuntran.com` | curl public → 200 |
 | 5 | Nối cả 3: goclaw (header) · Claude Code (header) · Desktop (path) | cả 3 gọi được `ping` |
@@ -180,16 +212,16 @@ Nếu vượt ~25 tool thì mới cân nhắc đổi sang generic dispatch (enti
 
 ## 15. Work checklist
 
-- [ ] Skeleton Worker + `/mcp` Streamable HTTP + tool `ping`
-- [ ] Auth middleware 1 file: `Authorization: Bearer` **hoặc** secret trong path
-- [ ] `/healthz` không auth
-- [ ] Tắt log path/query cho `/mcp`
-- [ ] Sinh secret `openssl rand -hex 32`, so sánh constant-time, 401 khi thiếu/sai
-- [ ] Verify `claude mcp add --transport http --header ...` bằng `claude mcp add --help`
-- [ ] Test local bằng curl + Claude Code
+- [x] Skeleton Worker + `/mcp` Streamable HTTP + tool `ping`
+- [x] Auth middleware 1 file: `Authorization: Bearer` **hoặc** secret trong path (2 secret riêng, D8)
+- [x] `/healthz` không auth
+- [x] Redact path trong app log (lưu ý: platform log vẫn ghi, xem §7b)
+- [x] Sinh secret `openssl rand -hex 32`, so sánh constant-time, 401 khi thiếu/sai
+- [x] Verify `claude mcp add --transport http --header ...` — xác nhận có
+- [x] Test local bằng curl + Claude Code (`claude mcp list` → Connected)
 - [ ] Deploy Workers + custom domain `dooit.tuntran.com`
 - [ ] Nối goclaw (header)
-- [ ] Nối Claude Code (header)
+- [x] Nối Claude Code (header) — verified trên localhost
 - [ ] Nối Claude Desktop (secret path)
 - [ ] **GATE: cả 3 client gọi được `ping`**
 - [ ] Schema D1: `client`, `project`, `task`, `habit`, `habit_checkin` + `UNIQUE(habit_id, date)`
@@ -229,6 +261,7 @@ Nếu vượt ~25 tool thì mới cân nhắc đổi sang generic dispatch (enti
    nhưng vẫn cần biết để viết đúng phần config nối MCP cho goclaw.
 2. **Zone `tuntran.com` đã ở trong Cloudflare chưa** — cần, để trỏ custom domain
    `dooit.tuntran.com` vào Worker.
-3. **Claude Code `--header`** — tin là có, chưa chạy `claude mcp add --help` để xác nhận.
+3. ~~**Claude Code `--header`**~~ — **đã xác nhận 08-20**: `claude mcp add --transport http
+   <name> <url> --header "Authorization: Bearer ..."`. Đã nối thật, `claude mcp list` báo Connected.
 4. **Flow OAuth chính xác Claude Desktop đòi gì** — chưa verify (chỉ có bằng chứng từ ảnh là
    *không có custom header*). Không chặn v1 vì đã chọn đường C.

@@ -1,0 +1,15 @@
+{
+  "name": "tudoolist",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  // The MCP SDK reaches for a handful of node built-ins.
+  "compatibility_flags": ["nodejs_compat"],
+  // Logs are on, so keep secrets out of anything we log. See src/log.ts.
+  "observability": { "enabled": true },
+
+  // Custom domain for dooit.tuntran.com. Needs the tuntran.com zone to live in
+  // this Cloudflare account; stays commented until that is confirmed.
+  // "routes": [{ "pattern": "dooit.tuntran.com", "custom_domain": true }]
+
+  // The D1 binding arrives at step 7, once the walking skeleton is through its gate.
+}

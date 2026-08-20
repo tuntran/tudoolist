@@ -12,6 +12,12 @@ out/
 .env.*
 !.env.example
 
+# Cloudflare Workers local secrets and dev state
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.wrangler/
+
 # Logs
 *.log
 logs/
