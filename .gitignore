@@ -12,6 +12,16 @@ out/
 .env.*
 !.env.example
 
+# Cloudflare Workers local secrets and dev state
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.wrangler/
+
+# Database exports — real client names, phone numbers, and contract amounts
+backup.sql
+*.backup.sql
+
 # Logs
 *.log
 logs/

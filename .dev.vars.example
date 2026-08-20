@@ -1,0 +1,14 @@
+# Copy to .dev.vars for local `wrangler dev`. Never commit .dev.vars.
+# Generate each value separately: openssl rand -hex 32
+
+# Bearer token for goclaw and Claude Code. Required.
+#   claude mcp add --transport http tudoolist https://dooit.tuntran.com/mcp \
+#     --header "Authorization: Bearer $MCP_SECRET"
+MCP_SECRET=replace-me-with-32-bytes-of-hex
+
+# Path secret for Claude Desktop, which cannot send headers:
+#   https://dooit.tuntran.com/mcp/<MCP_PATH_SECRET>
+# This one shows up in Cloudflare's own request logs, so give it a different
+# value from MCP_SECRET and rotate it on its own schedule. Leave it unset if you
+# do not use Claude Desktop — that turns path auth off entirely.
+MCP_PATH_SECRET=replace-me-with-a-different-32-bytes-of-hex

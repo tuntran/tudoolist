@@ -1,0 +1,24 @@
+{
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260820.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.124.0"
+  },
+  "name": "tudoolist",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "wrangler d1 migrations apply tudoolist --local",
+    "db:migrate:remote": "wrangler d1 migrations apply tudoolist --remote",
+    "db:seed": "wrangler d1 execute tudoolist --local --file=seeds/mock.sql",
+    "db:seed:remote": "wrangler d1 execute tudoolist --remote --file=seeds/mock.sql",
+    "db:backup": "wrangler d1 export tudoolist --remote --output=backup.sql"
+  }
+}
