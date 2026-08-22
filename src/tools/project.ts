@@ -42,6 +42,8 @@ const REPOS = z
 const PROJECT_SELECT = `
   SELECT p.id, p.name, p.status, p.client_id,
          c.name AS client_name, c.phone AS client_phone,
+         c.telegram AS client_telegram, c.zalo AS client_zalo,
+         c.facebook AS client_facebook,
          p.amount_total,
          COALESCE(paid.total, 0)                  AS amount_paid,
          p.amount_total - COALESCE(paid.total, 0) AS outstanding,

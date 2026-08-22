@@ -52,7 +52,8 @@ const TASK_SQL = `
  * the number of payments against them.
  */
 const BY_CLIENT_SQL = `
-  SELECT c.id AS client_id, c.name AS client_name, c.phone,
+  SELECT c.id AS client_id, c.name AS client_name,
+         c.phone, c.telegram, c.zalo, c.facebook,
          (SELECT COALESCE(SUM(pm.amount), 0)
             FROM payment pm JOIN project p ON p.id = pm.project_id
            WHERE p.client_id = c.id AND substr(pm.paid_date, 1, 7) = ?1) AS received_this_month,

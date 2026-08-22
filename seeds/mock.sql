@@ -17,10 +17,13 @@ DELETE FROM task;
 DELETE FROM project;
 DELETE FROM client;
 
-INSERT INTO client (id, name, phone, note) VALUES
-  (1, 'Nguyễn Minh Đức', '0912345678', 'Chủ chuỗi cà phê, quen qua anh Hải'),
-  (2, 'Trần Thu Hà',     '0987654321', 'Giảng viên, tự trả tiền, hay đổi yêu cầu'),
-  (3, 'Lê Quốc Bảo',     '0903112233', 'Bán hàng online, cần gấp, chốt qua Zalo');
+-- Contact channels are deliberately uneven: one client is only on Facebook,
+-- another agrees everything over Zalo. That is the normal case the columns exist
+-- for, so the seed should not make every row look complete.
+INSERT INTO client (id, name, phone, telegram, zalo, facebook, note) VALUES
+  (1, 'Nguyễn Minh Đức', '0912345678', NULL,       '0912345678', NULL,                                'Chủ chuỗi cà phê, quen qua anh Hải'),
+  (2, 'Trần Thu Hà',     '0987654321', '@thuha_ng', NULL,        NULL,                                'Giảng viên, tự trả tiền, hay đổi yêu cầu'),
+  (3, 'Lê Quốc Bảo',     NULL,         NULL,        '0903112233', 'https://facebook.com/baole.shop',  'Bán hàng online, cần gấp, chốt qua Zalo');
 
 INSERT INTO project (id, client_id, name, status, amount_total, description, note, repos, created_at) VALUES
   (1, 1, 'Website chuỗi cà phê Mộc',      'active', 35000000, 'Web giới thiệu 3 chi nhánh, menu riêng từng nơi, đặt bàn online', 'Ứng 40%, còn lại khi bàn giao',   '["https://github.com/example/moc-web"]', '2026-07-01T02:00:00Z'),

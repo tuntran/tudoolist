@@ -40,7 +40,8 @@ export function registerQueryTool(server: McpServer, ctx: ToolContext): void {
       description:
         'Run one SELECT against the database for a question the other tools do ' +
         'not cover. Writes are rejected. ' +
-        'Tables: client(id, name, phone, note, created_at); ' +
+        'Tables: client(id, name, phone, telegram, zalo, facebook, note, created_at) ' +
+        'where every contact channel is nullable and only some are ever filled in; ' +
         'project(id, client_id, name, status, amount_total, description, note, repos, created_at) ' +
         'with status in active/paused/done/cancelled; ' +
         'task(id, project_id, title, status, due_date, note, created_at, done_at) ' +

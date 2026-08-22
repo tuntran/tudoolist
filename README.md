@@ -37,8 +37,8 @@ guess which day the server means.
 |---|---|
 | `ping` | reachable and authenticated, plus the current local time |
 | `client_list` | clients, project counts, outstanding balance |
-| `client_add` | name, optional phone and note |
-| `client_update` | fill in a phone number that was not known at the time |
+| `client_add` | name, optional note, and any of phone, Telegram, Zalo, Facebook |
+| `client_update` | fill in a contact handle that was not known at the time |
 | `project_list` | filter by client or status; includes what is still owed and repo URLs |
 | `project_add` | needs a client id |
 | `project_update` | rename, restatus, change the agreed price, edit description, note, or repos |
@@ -65,6 +65,18 @@ reason streaks are derived from check-ins rather than kept in a column.
 
 Correcting a mistake means adding a negative row, not editing the old one, so
 what was believed at the time survives.
+
+### One client, several handles
+
+A client is reached on whichever channel they actually answer: `phone`,
+`telegram`, `zalo`, or `facebook`. All four are nullable columns on `client`,
+and most people have one or two — a client who only ever chốt đơn over Zalo may
+have no phone number stored at all.
+
+They are separate columns rather than a JSON blob because the set of channels is
+small, fixed, and named, which keeps the schema self-describing for an agent and
+makes "who has a Zalo" a plain `WHERE`. Values are stored as given — a handle, a
+number, or a profile URL — since normalising them would only guess wrong.
 
 ### description vs note
 

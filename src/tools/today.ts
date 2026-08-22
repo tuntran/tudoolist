@@ -46,7 +46,8 @@ export function registerTodayTool(server: McpServer, ctx: ToolContext): void {
         ]),
         rows(
           ctx.db,
-          `SELECT c.id AS client_id, c.name AS client_name, c.phone,
+          `SELECT c.id AS client_id, c.name AS client_name,
+                  c.phone, c.telegram, c.zalo, c.facebook,
                   SUM(p.amount_total - COALESCE(paid.total, 0)) AS outstanding
              FROM project p
              JOIN client c ON c.id = p.client_id
