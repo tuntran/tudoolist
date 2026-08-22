@@ -18,7 +18,6 @@
     "db:migrate": "wrangler d1 migrations apply tudoolist --local",
     "db:migrate:remote": "wrangler d1 migrations apply tudoolist --remote",
     "db:seed": "wrangler d1 execute tudoolist --local --file=seeds/mock.sql",
-    "db:seed:remote": "wrangler d1 execute tudoolist --remote --file=seeds/mock.sql",
     "db:backup": "wrangler d1 export tudoolist --remote --output=backup.sql"
   }
 }

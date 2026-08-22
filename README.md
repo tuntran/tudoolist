@@ -170,10 +170,10 @@ framework, because four tables do not need one.
 | `npm run db:migrate` | apply migrations locally |
 | `npm run db:migrate:remote` | apply them to production |
 | `npm run db:seed` | load `seeds/mock.sql` locally (wipes every table first) |
-| `npm run db:seed:remote` | **destructive** — same wipe, against production, which now holds real work |
 | `npm run db:backup` | dump production to `backup.sql` (gitignored: real names and amounts) |
 
-Seeding production deletes what is there. Back up first, or stay local.
+There is deliberately no seed script for production. Production holds real
+client work, and seeding wipes every table before it inserts.
 
 `APP_TZ` in `wrangler.jsonc` decides what "today" means. It is a var rather than
 a constant so it can follow whoever uses the server; `Asia/Saigon` and

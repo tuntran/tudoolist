@@ -1,11 +1,13 @@
 -- Mock seed data. NOT real client work — invented to give the tools something
 -- to read while the tool surface is being built.
 --
--- DESTRUCTIVE: this clears every table before inserting. Production now holds
--- real client work alongside these rows, so `npm run db:seed:remote` would
--- delete it. Take a backup first, or stay on the local database:
+-- DESTRUCTIVE: this clears every table before inserting. Only ever run it
+-- against the local database:
 --
 --   npm run db:seed    local dev database — safe
+--
+-- There is no remote counterpart on purpose. Production holds real client work,
+-- and pointing this file at it would delete every row.
 --
 -- Dates are spread across June–August so the monthly figures in `overview` have
 -- something to actually differ between.
